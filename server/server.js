@@ -48,6 +48,7 @@ io.on('connection', (socket) => {
       room = {
         code: roomCode,
         players: [],
+        playerHands: {}, // Manos de los jugadores
         gameState: { cardsPlayed: [] },
         settings: { totalCards: 3 }, // Configuración inicial
       };
@@ -76,11 +77,30 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     const { cardsPlayed } = room.gameState;
+
+    // Obtener todas las cartas disponibles en las manos de los jugadores
+    const allPlayersCards = Object.values(room.playerHands).flat();
+
+    // Encontrar la carta más baja disponible
+    const lowestCard = Math.min(...allPlayersCards);
+
+    // Verificar si la carta jugada es válida
+    if (card > lowestCard) {
+      console.log(`Carta inválida jugada: ${card}. La carta más baja disponible es: ${lowestCard}`);
+      io.to(roomCode).emit('game-over', false); // Perdieron
+      return;
+    }
+
+    // Agregar la carta jugada al historial de cartas jugadas
     cardsPlayed.push(card);
+
+    // Eliminar la carta jugada de la mano del jugador
+    room.playerHands[socket.id] = room.playerHands[socket.id].filter(c => c !== card);
 
     // Verificar si las cartas están en orden ascendente
     const isAscending = cardsPlayed.every((card, i) => i === 0 || card > cardsPlayed[i - 1]);
     if (!isAscending) {
+      console.log(`Cartas no están en orden ascendente: ${cardsPlayed}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
       return;
     }
@@ -91,6 +111,7 @@ io.on('connection', (socket) => {
 
     // Si todas las cartas fueron jugadas, ganaron
     if (cardsPlayed.length === room.players.length * room.settings.totalCards) {
+      console.log("¡Todos los jugadores ganaron!");
       io.to(roomCode).emit('game-over', true); // Ganaron
     }
   });
@@ -112,6 +133,7 @@ io.on('connection', (socket) => {
       const playerIndex = room.players.indexOf(socket.id);
       if (playerIndex !== -1) {
         room.players.splice(playerIndex, 1);
+        delete room.playerHands[socket.id];
         if (room.players.length < 2) {
           delete rooms[roomCode];
         }
@@ -131,6 +153,7 @@ function startGame(roomCode) {
 
   // Repartir cartas a los jugadores
   players.forEach((playerId, index) => {
+    room.playerHands[playerId] = hands[index];
     io.to(playerId).emit('deal-cards', hands[index]);
   });
 

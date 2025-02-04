@@ -268,8 +268,9 @@
         errorMessageDiv.textContent = '¡Perdiste! Reiniciando partida...';
         errorMessageDiv.classList.remove('hidden');
       } else {
-        errorMessageDiv.textContent = '';
-        errorMessageDiv.classList.add('hidden');
+        errorMessageDiv.textContent = '¡Ganaste!';
+        errorMessageDiv.style.color = 'green';
+        errorMessageDiv.classList.remove('hidden');
       }
 
       // Reiniciar la partida automáticamente
