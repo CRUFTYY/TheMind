@@ -2,14 +2,13 @@
 
 const express = require('express');
 const http = require('http');
-const path = require('path');
 const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Permite conexiones desde cualquier origen
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -53,6 +52,8 @@ io.on('connection', (socket) => {
         settings: { totalCards: null }, // Configuración inicial
         started: false, // Indica si la partida ha comenzado
         creator: socket.id, // Identificador del creador de la sala
+        timer: null, // Temporizador compartido
+        timeLeft: 30, // Tiempo inicial en segundos
       };
     }
 
@@ -133,7 +134,6 @@ io.on('connection', (socket) => {
     if (card > lowestCard) {
       console.log(`Carta inválida jugada: ${card}. La carta más baja disponible es: ${lowestCard}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
-      setTimeout(() => restartGame(roomCode), 3000); // Reiniciar automáticamente después de 3 segundos
       return;
     }
 
@@ -148,7 +148,6 @@ io.on('connection', (socket) => {
     if (!isAscending) {
       console.log(`Cartas no están en orden ascendente: ${cardsPlayed}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
-      setTimeout(() => restartGame(roomCode), 3000); // Reiniciar automáticamente después de 3 segundos
       return;
     }
 
@@ -164,19 +163,17 @@ io.on('connection', (socket) => {
   });
 
   // Reiniciar la partida
-  function restartGame(roomCode) {
+  socket.on('restart-game', ({ roomCode, totalCards }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Reiniciar el estado del juego
-    room.settings.totalCards = room.settings.totalCards; // Mantener la misma cantidad de cartas
+    room.settings.totalCards = totalCards;
     room.started = false; // Reiniciar el estado de la partida
     room.gameState.cardsPlayed = []; // Limpiar cartas jugadas
     room.playerHands = {}; // Limpiar manos de los jugadores
 
-    // Iniciar una nueva partida
     startGame(roomCode);
-  }
+  });
 
   // Manejar desconexión
   socket.on('disconnect', () => {
@@ -219,6 +216,20 @@ function startGame(roomCode) {
 
   // Reiniciar cartas jugadas
   room.gameState.cardsPlayed = [];
+
+  // Iniciar el temporizador compartido
+  room.timeLeft = 30; // Reiniciar el tiempo
+  clearInterval(room.timer); // Detener cualquier temporizador anterior
+  room.timer = setInterval(() => {
+    room.timeLeft--;
+    io.to(roomCode).emit('update-timer', room.timeLeft);
+
+    if (room.timeLeft <= 0) {
+      clearInterval(room.timer);
+      io.to(roomCode).emit('game-over', false); // Terminar la partida si el tiempo se agota
+    }
+  }, 1000);
+
   io.to(roomCode).emit('update-state', room.gameState);
 }
 
