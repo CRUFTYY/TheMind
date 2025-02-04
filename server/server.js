@@ -41,22 +41,56 @@ function dealCards(cards, numPlayers) {
 io.on('connection', (socket) => {
   console.log(`Usuario conectado: ${socket.id}`);
 
-  // Unirse o crear una sala
-  socket.on('join-room', (roomCode) => {
-    let room = rooms[roomCode];
-    if (!room) {
-      room = {
+  // Crear una sala
+  socket.on('create-room', (roomCode) => {
+    if (!rooms[roomCode]) {
+      rooms[roomCode] = {
         code: roomCode,
         players: [],
         playerHands: {}, // Manos de los jugadores
         gameState: { cardsPlayed: [] },
-        settings: { totalCards: 3 }, // Configuración inicial
+        settings: { totalCards: null }, // Configuración inicial
+        started: false, // Indica si la partida ha comenzado
       };
-      rooms[roomCode] = room;
+    }
+
+    const room = rooms[roomCode];
+    const playerIndex = room.players.push(socket.id) - 1;
+    socket.join(roomCode);
+
+    // Notificar al cliente que la sala ha sido creada
+    socket.emit('room-created', roomCode);
+
+    // Enviar el estado actual de la sala al jugador
+    socket.emit('update-state', room.gameState);
+  });
+
+  // Verificar si una sala existe
+  socket.on('check-room', (roomCode, callback) => {
+    const room = rooms[roomCode];
+    const exists = !!room;
+    callback(exists, room?.started); // Devolver si la sala existe y si ya comenzó
+  });
+
+  // Unirse a una sala
+  socket.on('join-room', (roomCode) => {
+    const room = rooms[roomCode];
+    if (!room || room.started) {
+      // Si la sala no existe o ya comenzó, no permitir unirse
+      socket.emit('join-error', 'La sala no existe o la partida ya comenzó.');
+      return;
     }
 
     const playerIndex = room.players.push(socket.id) - 1;
     socket.join(roomCode);
+
+    // Enviar el estado actual de la sala al jugador
+    socket.emit('update-state', room.gameState);
+
+    // Si la partida ya comenzó, repartir cartas al jugador que se une
+    if (room.started && room.playerHands[socket.id]) {
+      socket.emit('deal-cards', room.playerHands[socket.id]);
+    }
 
     // Notificar a todos los jugadores que se ha unido alguien
     io.to(roomCode).emit('update-state', room.gameState);
@@ -65,16 +99,20 @@ io.on('connection', (socket) => {
   // Iniciar la partida
   socket.on('start-game', ({ roomCode, totalCards }) => {
     const room = rooms[roomCode];
-    if (!room) return;
+    if (!room || room.started) return;
 
-    room.settings.totalCards = totalCards;
-    startGame(roomCode);
+    // Solo el creador puede iniciar la partida
+    if (room.settings.totalCards === null) {
+      room.settings.totalCards = totalCards;
+      room.started = true; // Marcar la partida como iniciada
+      startGame(roomCode);
+    }
   });
 
   // Jugar una carta
   socket.on('play-card', ({ roomCode, card }) => {
     const room = rooms[roomCode];
-    if (!room) return;
+    if (!room || !room.started) return;
 
     const { cardsPlayed } = room.gameState;
 
@@ -122,6 +160,10 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     room.settings.totalCards = totalCards;
+    room.started = false; // Reiniciar el estado de la partida
+    room.gameState.cardsPlayed = []; // Limpiar cartas jugadas
+    room.playerHands = {}; // Limpiar manos de los jugadores
+
     startGame(roomCode);
   });
 

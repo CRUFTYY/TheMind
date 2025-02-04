@@ -123,8 +123,12 @@
 
     <!-- Pantalla de inicio -->
     <div id="start-screen">
-      <input type="text" id="room-code" placeholder="Código de sala (opcional)">
-      <button onclick="createOrJoinRoom()">Crear/Unirse a Sala</button>
+      <button onclick="createRoom()">Crear Sala</button>
+      <div>
+        <input type="text" id="join-room-code" placeholder="Código de sala (hexadecimal)">
+        <button onclick="joinRoom()">Unirse a Sala</button>
+      </div>
+      <div id="join-error-message" class="error-message hidden"></div>
     </div>
 
     <!-- Pantalla de configuración -->
@@ -169,10 +173,10 @@
     let gameState = { players: [], cardsPlayed: [] };
     let totalCards = 3;
 
-    // Función para crear o unirse a una sala
-    function createOrJoinRoom() {
-      roomCode = document.getElementById('room-code').value || generateRandomCode();
-      socket.emit('join-room', roomCode);
+    // Función para crear una sala
+    function createRoom() {
+      roomCode = generateHexCode();
+      socket.emit('create-room', roomCode);
 
       // Mostrar configuración de la sala
       document.getElementById('start-screen').classList.add('hidden');
@@ -182,9 +186,40 @@
       document.getElementById('display-room-code').textContent = `Código de Sala: ${roomCode}`;
     }
 
-    // Función para generar un código de sala aleatorio
-    function generateRandomCode() {
-      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Función para unirse a una sala
+    function joinRoom() {
+      const joinRoomCode = document.getElementById('join-room-code').value.trim().toUpperCase();
+      if (!joinRoomCode) {
+        alert('Por favor, ingresa un código de sala válido.');
+        return;
+      }
+
+      // Emitir solicitud al servidor para verificar la sala
+      socket.emit('check-room', joinRoomCode, (exists, started) => {
+        if (exists) {
+          if (started) {
+            alert('La partida ya comenzó. No puedes unirte.');
+            return;
+          }
+
+          roomCode = joinRoomCode;
+          socket.emit('join-room', roomCode);
+
+          // Mostrar pantalla de juego
+          document.getElementById('start-screen').classList.add('hidden');
+          document.getElementById('game-screen').classList.remove('hidden');
+        } else {
+          // Mostrar mensaje de error si la sala no existe
+          const errorMessageDiv = document.getElementById('join-error-message');
+          errorMessageDiv.textContent = 'La sala no existe. Inténtalo de nuevo.';
+          errorMessageDiv.classList.remove('hidden');
+        }
+      });
+    }
+
+    // Función para generar un código hexadecimal de 4 dígitos
+    function generateHexCode() {
+      return Math.random().toString(16).substring(2, 6).toUpperCase();
     }
 
     // Función para iniciar la partida
