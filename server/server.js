@@ -2,13 +2,14 @@
 
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Permite conexiones desde cualquier origen
     methods: ["GET", "POST"]
   }
 });
@@ -132,6 +133,7 @@ io.on('connection', (socket) => {
     if (card > lowestCard) {
       console.log(`Carta inválida jugada: ${card}. La carta más baja disponible es: ${lowestCard}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
+      setTimeout(() => restartGame(roomCode), 3000); // Reiniciar automáticamente después de 3 segundos
       return;
     }
 
@@ -146,6 +148,7 @@ io.on('connection', (socket) => {
     if (!isAscending) {
       console.log(`Cartas no están en orden ascendente: ${cardsPlayed}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
+      setTimeout(() => restartGame(roomCode), 3000); // Reiniciar automáticamente después de 3 segundos
       return;
     }
 
@@ -161,17 +164,19 @@ io.on('connection', (socket) => {
   });
 
   // Reiniciar la partida
-  socket.on('restart-game', ({ roomCode, totalCards }) => {
+  function restartGame(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    room.settings.totalCards = totalCards;
+    // Reiniciar el estado del juego
+    room.settings.totalCards = room.settings.totalCards; // Mantener la misma cantidad de cartas
     room.started = false; // Reiniciar el estado de la partida
     room.gameState.cardsPlayed = []; // Limpiar cartas jugadas
     room.playerHands = {}; // Limpiar manos de los jugadores
 
+    // Iniciar una nueva partida
     startGame(roomCode);
-  });
+  }
 
   // Manejar desconexión
   socket.on('disconnect', () => {
