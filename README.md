@@ -3,8 +3,10 @@
 ## Version License
 The Mind es una implementación del juego cooperativo "The Mind". Los jugadores deben trabajar juntos para jugar cartas en orden ascendente sin comunicarse verbalmente. Este proyecto utiliza tecnologías como Node.js, Socket.IO y HTML/CSS/JavaScript para proporcionar una experiencia multijugador en tiempo real.
 
+## **Página Web:** [TheMind](https://themind-smj1.onrender.com)
 **Desarrollado por:** CRUFTYY  
 **Repositorio:** [TheMind](https://github.com/CRUFTYY/TheMind)
+
 
 ## Tabla de Contenidos
 - [Características](#caracteristicas)
