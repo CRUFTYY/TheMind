@@ -52,8 +52,6 @@ io.on('connection', (socket) => {
         settings: { totalCards: null }, // Configuración inicial
         started: false, // Indica si la partida ha comenzado
         creator: socket.id, // Identificador del creador de la sala
-        timer: null, // Temporizador compartido
-        timeLeft: 30, // Tiempo inicial en segundos
       };
     }
 
@@ -216,20 +214,6 @@ function startGame(roomCode) {
 
   // Reiniciar cartas jugadas
   room.gameState.cardsPlayed = [];
-
-  // Iniciar el temporizador compartido
-  room.timeLeft = 30; // Reiniciar el tiempo
-  clearInterval(room.timer); // Detener cualquier temporizador anterior
-  room.timer = setInterval(() => {
-    room.timeLeft--;
-    io.to(roomCode).emit('update-timer', room.timeLeft);
-
-    if (room.timeLeft <= 0) {
-      clearInterval(room.timer);
-      io.to(roomCode).emit('game-over', false); // Terminar la partida si el tiempo se agota
-    }
-  }, 1000);
-
   io.to(roomCode).emit('update-state', room.gameState);
 }
 
