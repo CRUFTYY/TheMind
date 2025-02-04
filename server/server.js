@@ -1,23 +1,15 @@
-const path = require('path');
-
-// Servir archivos estáticos desde la carpeta "client"
-app.use(express.static(path.join(__dirname, '../client')));
-
-// Manejar la ruta raíz ("/")
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
-});
 // server.js - Backend para el juego "The Mind" usando Node.js y Socket.IO
 
 const express = require('express');
 const http = require('http');
+const path = require('path'); // Para manejar rutas de archivos
 const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Permite conexiones desde cualquier origen
     methods: ["GET", "POST"]
   }
 });
@@ -26,6 +18,14 @@ const PORT = process.env.PORT || 3000;
 
 // Almacenamiento temporal de salas y estados del juego
 const rooms = {};
+
+// Servir archivos estáticos desde la carpeta "client"
+app.use(express.static(path.join(__dirname, '../client')));
+
+// Manejar la ruta raíz ("/")
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
 
 // Función para generar cartas aleatorias
 function generateCards(numPlayers, totalCards) {
