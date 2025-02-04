@@ -1,3 +1,12 @@
+const path = require('path');
+
+// Servir archivos estáticos desde la carpeta "client"
+app.use(express.static(path.join(__dirname, '../client')));
+
+// Manejar la ruta raíz ("/")
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
 // server.js - Backend para el juego "The Mind" usando Node.js y Socket.IO
 
 const express = require('express');

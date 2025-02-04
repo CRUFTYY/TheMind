@@ -60,7 +60,7 @@ npx serve client
 2. Compartí este código con tus amigos para que se unan.
 
 ### Unirse a una sala:
-1. Ingresa el código de sala en otro navegador o dispositivo y haz clic en "Unirse a Sala".
+1. Ingresá el código de sala en otro navegador o dispositivo y hacé clic en "Unirse a Sala".
 
 ### Configurar la partida:
 1. El creador de la sala selecciona la cantidad de cartas antes de iniciar la partida.
