@@ -2,7 +2,7 @@
 
 const express = require('express');
 const http = require('http');
-const path = require('path');
+const path = require('path'); // Para manejar rutas de archivos
 const { Server } = require('socket.io');
 
 const app = express();
@@ -18,6 +18,14 @@ const PORT = process.env.PORT || 3000;
 
 // Almacenamiento temporal de salas y estados del juego
 const rooms = {};
+
+// Servir archivos estáticos desde la carpeta "client"
+app.use(express.static(path.join(__dirname, '../client')));
+
+// Manejar la ruta raíz ("/")
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
 
 // Función para generar cartas aleatorias
 function generateCards(numPlayers, totalCards) {
@@ -133,7 +141,6 @@ io.on('connection', (socket) => {
     if (card > lowestCard) {
       console.log(`Carta inválida jugada: ${card}. La carta más baja disponible es: ${lowestCard}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
-      setTimeout(() => restartGame(roomCode), 3000); // Reiniciar automáticamente después de 3 segundos
       return;
     }
 
@@ -148,7 +155,6 @@ io.on('connection', (socket) => {
     if (!isAscending) {
       console.log(`Cartas no están en orden ascendente: ${cardsPlayed}`);
       io.to(roomCode).emit('game-over', false); // Perdieron
-      setTimeout(() => restartGame(roomCode), 3000); // Reiniciar automáticamente después de 3 segundos
       return;
     }
 
@@ -164,19 +170,17 @@ io.on('connection', (socket) => {
   });
 
   // Reiniciar la partida
-  function restartGame(roomCode) {
+  socket.on('restart-game', ({ roomCode, totalCards }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Reiniciar el estado del juego
-    room.settings.totalCards = room.settings.totalCards; // Mantener la misma cantidad de cartas
+    room.settings.totalCards = totalCards;
     room.started = false; // Reiniciar el estado de la partida
     room.gameState.cardsPlayed = []; // Limpiar cartas jugadas
     room.playerHands = {}; // Limpiar manos de los jugadores
 
-    // Iniciar una nueva partida
     startGame(roomCode);
-  }
+  });
 
   // Manejar desconexión
   socket.on('disconnect', () => {
