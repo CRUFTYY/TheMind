@@ -133,6 +133,8 @@
 
     <!-- Pantalla de configuración -->
     <div id="room-settings" class="hidden">
+      <div class="room-code" id="display-room-code-settings"></div>
+      <button class="copy-button" onclick="copyRoomCode()">Copiar Código de Sala</button>
       <label for="cards-per-player">Cantidad total de cartas:</label>
       <select id="cards-per-player">
         <option value="1">1</option>
@@ -141,7 +143,8 @@
         <option value="4">4</option>
         <option value="5">5</option>
       </select>
-      <button onclick="startGame()">Iniciar Partida</button>
+      <button id="start-game-button" onclick="startGame()" disabled>Iniciar Partida</button>
+      <div id="players-list" class="status">Jugadores conectados: 1</div>
     </div>
 
     <!-- Pantalla de juego -->
@@ -172,6 +175,7 @@
     let playerCards = [];
     let gameState = { players: [], cardsPlayed: [] };
     let totalCards = 3;
+    let isCreator = false;
 
     // Función para crear una sala
     function createRoom() {
@@ -182,8 +186,10 @@
       document.getElementById('start-screen').classList.add('hidden');
       document.getElementById('room-settings').classList.remove('hidden');
 
-      // Mostrar el código de la sala
+      // Mostrar el código de la sala en la pantalla de configuración
+      document.getElementById('display-room-code-settings').textContent = `Código de Sala: ${roomCode}`;
       document.getElementById('display-room-code').textContent = `Código de Sala: ${roomCode}`;
+      isCreator = true; // Marcar como creador
     }
 
     // Función para unirse a una sala
@@ -208,6 +214,9 @@
           // Mostrar pantalla de juego
           document.getElementById('start-screen').classList.add('hidden');
           document.getElementById('game-screen').classList.remove('hidden');
+
+          // Mostrar el código de la sala en la pantalla de juego
+          document.getElementById('display-room-code').textContent = `Código de Sala: ${roomCode}`;
         } else {
           // Mostrar mensaje de error si la sala no existe
           const errorMessageDiv = document.getElementById('join-error-message');
@@ -224,6 +233,8 @@
 
     // Función para iniciar la partida
     function startGame() {
+      if (!isCreator) return; // Solo el creador puede iniciar la partida
+
       totalCards = parseInt(document.getElementById('cards-per-player').value);
       socket.emit('start-game', { roomCode, totalCards });
 
@@ -287,6 +298,12 @@
       gameState = state;
       updatePlayedCards();
       document.getElementById('status').textContent = 'Jugando...';
+
+      // Actualizar lista de jugadores conectados
+      const playersList = document.getElementById('players-list');
+      if (playersList) {
+        playersList.textContent = `Jugadores conectados: ${state.players.length}`;
+      }
     });
 
     // Evento: Repartir cartas
@@ -316,6 +333,14 @@
       }, 3000);
     });
 
+    // Habilitar el botón "Iniciar Partida" cuando hay al menos 2 jugadores
+    socket.on('enable-start-game', () => {
+      const startGameButton = document.getElementById('start-game-button');
+      if (startGameButton) {
+        startGameButton.disabled = false;
+      }
+    });
+
     // Función para reiniciar el juego
     socket.on('restart-game', () => {
       playerCards = [];
@@ -326,4 +351,3 @@
     });
   </script>
 </body>
-</html>

@@ -51,6 +51,7 @@ io.on('connection', (socket) => {
         gameState: { cardsPlayed: [] },
         settings: { totalCards: null }, // Configuración inicial
         started: false, // Indica si la partida ha comenzado
+        creator: socket.id, // Identificador del creador de la sala
       };
     }
 
@@ -63,6 +64,11 @@ io.on('connection', (socket) => {
 
     // Enviar el estado actual de la sala al jugador
     socket.emit('update-state', room.gameState);
+
+    // Si hay al menos 2 jugadores, habilitar el botón "Iniciar Partida" para el creador
+    if (room.players.length >= 2 && room.creator === socket.id) {
+      socket.emit('enable-start-game');
+    }
   });
 
   // Verificar si una sala existe
@@ -87,13 +93,13 @@ io.on('connection', (socket) => {
     // Enviar el estado actual de la sala al jugador
     socket.emit('update-state', room.gameState);
 
-    // Si la partida ya comenzó, repartir cartas al jugador que se une
-    if (room.started && room.playerHands[socket.id]) {
-      socket.emit('deal-cards', room.playerHands[socket.id]);
-    }
-
     // Notificar a todos los jugadores que se ha unido alguien
     io.to(roomCode).emit('update-state', room.gameState);
+
+    // Si hay al menos 2 jugadores, habilitar el botón "Iniciar Partida" para el creador
+    if (room.players.length >= 2 && room.creator) {
+      io.to(room.creator).emit('enable-start-game');
+    }
   });
 
   // Iniciar la partida
@@ -102,7 +108,7 @@ io.on('connection', (socket) => {
     if (!room || room.started) return;
 
     // Solo el creador puede iniciar la partida
-    if (room.settings.totalCards === null) {
+    if (room.creator === socket.id && room.settings.totalCards === null) {
       room.settings.totalCards = totalCards;
       room.started = true; // Marcar la partida como iniciada
       startGame(roomCode);
@@ -176,7 +182,14 @@ io.on('connection', (socket) => {
       if (playerIndex !== -1) {
         room.players.splice(playerIndex, 1);
         delete room.playerHands[socket.id];
-        if (room.players.length < 2) {
+
+        // Notificar a todos los jugadores que un jugador se ha desconectado
+        io.to(roomCode).emit('update-state', room.gameState);
+
+        // Si el creador se desconecta, eliminar la sala
+        if (room.creator === socket.id) {
+          delete rooms[roomCode];
+        } else if (room.players.length < 2) {
           delete rooms[roomCode];
         }
       }
