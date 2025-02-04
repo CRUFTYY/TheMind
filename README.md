@@ -12,7 +12,6 @@ The Mind es una implementación del juego cooperativo "The Mind". Los jugadores 
 - [Instalación](#instalacion)
 - [Uso](#uso)
 - [Estructura del Proyecto](#estructura-del-proyecto)
-- [Contribuciones](#contribuciones)
 - [Licencia](#licencia)
 - [Contacto](#contacto)
 
