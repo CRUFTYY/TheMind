@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Mind - Juego en Línea</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 600px;
+      text-align: center;
+      background: #1e1e1e;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    input {
+      width: calc(100% - 22px);
+      background: #333;
+      color: #fff;
+    }
+
+    button {
+      width: 100%;
+      background: #ff5722;
+      color: #fff;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #e64a19;
+    }
+
+    .game-board {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-played {
+      background: #4caf50; /* Verde para cartas jugadas */
+      padding: 15px;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-player {
+      background: #2c2c2c; /* Gris oscuro para cartas del jugador */
+      padding: 15px;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+    }
+
+    .card-player:hover {
+      background: #444;
+    }
+
+    .status {
+      margin-top: 20px;
+      font-size: 1.1rem;
+      color: #888;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .room-code {
+      font-size: 1.2rem;
+      margin-top: 10px;
+      color: #ff5722;
+    }
+
+    .copy-button {
+      background: #4caf50;
+      margin-top: 10px;
+    }
+
+    .error-message {
+      color: red;
+      font-size: 1.2rem;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>The Mind</h1>
+
+    <!-- Pantalla de inicio -->
+    <div id="start-screen">
+      <input type="text" id="room-code" placeholder="Código de sala (opcional)">
+      <button onclick="createOrJoinRoom()">Crear/Unirse a Sala</button>
+    </div>
+
+    <!-- Pantalla de configuración -->
+    <div id="room-settings" class="hidden">
+      <label for="cards-per-player">Cantidad total de cartas:</label>
+      <select id="cards-per-player">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+      <button onclick="startGame()">Iniciar Partida</button>
+    </div>
+
+    <!-- Pantalla de juego -->
+    <div id="game-screen" class="hidden">
+      <div class="room-code" id="display-room-code"></div>
+      <button class="copy-button" onclick="copyRoomCode()">Copiar Código de Sala</button>
+      <div class="status" id="status">Esperando jugadores...</div>
+      <div class="game-board">
+        <h3>Cartas Jugadas</h3>
+        <div id="played-cards" class="game-board"></div>
+      </div>
+      <div class="game-board">
+        <h3>Tus Cartas</h3>
+        <div id="player-cards" class="game-board"></div>
+      </div>
+      <div id="error-message" class="error-message hidden"></div>
+    </div>
+  </div>
+
+  <!-- Incluir Socket.IO -->
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <script>
+    // Conexión al servidor
+    const socket = io('http://localhost:3000'); // Cambia esto si despliegas el servidor
+
+    // Variables globales
+    let roomCode = '';
+    let playerCards = [];
+    let gameState = { players: [], cardsPlayed: [] };
+    let totalCards = 3;
+
+    // Función para crear o unirse a una sala
+    function createOrJoinRoom() {
+      roomCode = document.getElementById('room-code').value || generateRandomCode();
+      socket.emit('join-room', roomCode);
+
+      // Mostrar configuración de la sala
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('room-settings').classList.remove('hidden');
+
+      // Mostrar el código de la sala
+      document.getElementById('display-room-code').textContent = `Código de Sala: ${roomCode}`;
+    }
+
+    // Función para generar un código de sala aleatorio
+    function generateRandomCode() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    // Función para iniciar la partida
+    function startGame() {
+      totalCards = parseInt(document.getElementById('cards-per-player').value);
+      socket.emit('start-game', { roomCode, totalCards });
+
+      // Mostrar la pantalla de juego
+      document.getElementById('room-settings').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+    }
+
+    // Función para copiar el código de la sala al portapapeles
+    function copyRoomCode() {
+      navigator.clipboard.writeText(roomCode).then(() => {
+        alert('Código de sala copiado al portapapeles: ' + roomCode);
+      }).catch(err => {
+        console.error('Error al copiar el código de sala:', err);
+      });
+    }
+
+    // Función para actualizar las cartas jugadas
+    function updatePlayedCards() {
+      const playedCardsDiv = document.getElementById('played-cards');
+      playedCardsDiv.innerHTML = '';
+      gameState.cardsPlayed.forEach(card => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card-played';
+        cardDiv.textContent = card;
+        playedCardsDiv.appendChild(cardDiv);
+      });
+    }
+
+    // Función para mostrar las cartas del jugador
+    function showPlayerCards() {
+      const playerCardsDiv = document.getElementById('player-cards');
+      playerCardsDiv.innerHTML = '';
+      if (playerCards.length > 0) {
+        playerCards.forEach(card => {
+          const cardButton = document.createElement('button');
+          cardButton.className = 'card-player';
+          cardButton.textContent = card;
+          cardButton.onclick = () => playCard(card);
+          playerCardsDiv.appendChild(cardButton);
+        });
+      } else {
+        playerCardsDiv.textContent = 'No tienes cartas.';
+      }
+    }
+
+    // Función para jugar una carta
+    function playCard(card) {
+      playerCards = playerCards.filter(c => c !== card); // Eliminar la carta jugada
+      socket.emit('play-card', { roomCode, card });
+      showPlayerCards(); // Actualizar las cartas del jugador
+    }
+
+    // Evento: Sala creada
+    socket.on('room-created', () => {
+      console.log(`Te has unido a la sala: ${roomCode}`);
+    });
+
+    // Evento: Actualizar estado del juego
+    socket.on('update-state', state => {
+      gameState = state;
+      updatePlayedCards();
+      document.getElementById('status').textContent = 'Jugando...';
+    });
+
+    // Evento: Repartir cartas
+    socket.on('deal-cards', cards => {
+      playerCards = cards.sort((a, b) => a - b);
+      showPlayerCards();
+      document.getElementById('status').textContent = 'Jugando...';
+    });
+
+    // Evento: Fin del juego
+    socket.on('game-over', winner => {
+      const errorMessageDiv = document.getElementById('error-message');
+      if (!winner) {
+        errorMessageDiv.textContent = '¡Perdiste! Reiniciando partida...';
+        errorMessageDiv.classList.remove('hidden');
+      } else {
+        errorMessageDiv.textContent = '';
+        errorMessageDiv.classList.add('hidden');
+      }
+
+      // Reiniciar la partida automáticamente
+      setTimeout(() => {
+        errorMessageDiv.textContent = '';
+        errorMessageDiv.classList.add('hidden');
+        socket.emit('restart-game', { roomCode, totalCards });
+      }, 3000);
+    });
+
+    // Función para reiniciar el juego
+    socket.on('restart-game', () => {
+      playerCards = [];
+      gameState = { players: [], cardsPlayed: [] };
+      document.getElementById('status').textContent = 'Esperando jugadores...';
+      document.getElementById('played-cards').innerHTML = '';
+      document.getElementById('player-cards').innerHTML = '';
+    });
+  </script>
+</body>
+</html>
